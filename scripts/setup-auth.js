@@ -145,9 +145,10 @@ async function setupAuth() {
     }
 
     log('Checking database schema...');
-    const pushOutput = execCommand('npx drizzle-kit push --force', {
+    const pushOutput = execCommand('yes | npx drizzle-kit push --force', {
       ignoreError: false,
-      silent: false
+      silent: false,
+      shell: '/bin/bash'
     });
 
     // Check output for "No changes detected"
