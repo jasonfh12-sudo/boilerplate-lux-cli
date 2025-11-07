@@ -131,37 +131,20 @@ async function setupAuth() {
     logWarning('Schema generation skipped (may already exist)');
   }
 
-  // Push to database
-  logSection('Database Migration');
+  // Database info
+  logSection('Database Configuration');
 
-  try {
-    if (hasOrgId) {
-      const sanitizedOrgId = process.env.CLERK_ORG_ID.replace(/_/g, '').toLowerCase();
-      const dbUrl = `libsql://${sanitizedOrgId}-lux-ai-labs.aws-us-west-2.turso.io`;
-      log(`Target database: ${dbUrl}`);
-      log('Note: Multiple interfaces in the same org share auth tables');
-    } else if (hasTursoUrl) {
-      log(`Target database: ${process.env.TURSO_DATABASE_URL}`);
-    }
-
-    log('Checking database schema...');
-    const pushOutput = execCommand('yes | npx drizzle-kit push --force', {
-      ignoreError: false,
-      silent: false,
-      shell: '/bin/bash'
-    });
-
-    // Check output for "No changes detected"
-    if (pushOutput && pushOutput.includes('No changes')) {
-      logSuccess('Auth tables already exist - schema is up to date');
-    } else {
-      logSuccess('Auth tables created/updated successfully');
-    }
-  } catch (error) {
-    // This is expected if tables already exist with correct schema
-    logSuccess('Auth tables verified (already exist)');
-    log('Schema matches existing database - no changes needed.');
+  if (hasOrgId) {
+    const sanitizedOrgId = process.env.CLERK_ORG_ID.replace(/_/g, '').toLowerCase();
+    const dbUrl = `libsql://${sanitizedOrgId}-lux-ai-labs.aws-us-west-2.turso.io`;
+    log(`Database: ${dbUrl}`);
+    log('Auth tables are shared across all interfaces in this org');
+  } else if (hasTursoUrl) {
+    log(`Database: ${process.env.TURSO_DATABASE_URL}`);
   }
+
+  logSuccess('Database connection configured');
+  log('Note: Auth tables are created during org setup')
 
   // Success summary
   logSection('Setup Complete');
