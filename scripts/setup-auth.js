@@ -125,7 +125,7 @@ async function setupAuth() {
 
   try {
     log('Generating auth schema (user, session, account, verification tables)...');
-    execCommand('npx @better-auth/cli generate', { ignoreError: false });
+    execCommand('npx @better-auth/cli generate --yes', { ignoreError: false });
     logSuccess('Auth schema generated');
   } catch (error) {
     logWarning('Schema generation skipped (may already exist)');
