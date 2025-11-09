@@ -28,16 +28,21 @@ async function sendEmail({ to, subject, html }: SendEmailOptions) {
   }
 
   try {
-    const data = await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to,
       subject,
       html,
     });
 
-    console.log("[EMAIL] Email sent successfully:", { to, subject, id: data.id });
-    return { success: true, id: data.id };
-  } catch (error) {
+    if (error) {
+      console.error("[EMAIL] Failed to send email:", error);
+      return { success: false, error: error.message };
+    }
+
+    console.log("[EMAIL] Email sent successfully:", { to, subject, id: data?.id });
+    return { success: true, id: data?.id };
+  } catch (error: any) {
     console.error("[EMAIL] Failed to send email:", error);
     return { success: false, error: error.message };
   }

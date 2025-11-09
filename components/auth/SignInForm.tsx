@@ -43,27 +43,28 @@ export function SignInForm() {
     }
   };
 
-  const handleMagicLink = async () => {
-    if (!email) {
-      setError("Please enter your email");
-      return;
-    }
+  // Magic link authentication not yet configured
+  // const handleMagicLink = async () => {
+  //   if (!email) {
+  //     setError("Please enter your email");
+  //     return;
+  //   }
 
-    setError("");
-    setIsLoading(true);
+  //   setError("");
+  //   setIsLoading(true);
 
-    try {
-      await authClient.signIn.magicLink({
-        email,
-        callbackURL: "/",
-      });
-      setMagicLinkSent(true);
-    } catch (err) {
-      setError("Failed to send magic link");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  //   try {
+  //     await authClient.signIn.magicLink({
+  //       email,
+  //       callbackURL: "/",
+  //     });
+  //     setMagicLinkSent(true);
+  //   } catch (err) {
+  //     setError("Failed to send magic link");
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
 
   if (magicLinkSent) {
     return (
@@ -167,14 +168,14 @@ export function SignInForm() {
         </button>
       </form>
 
-      {/* Magic Link Option */}
-      <button
+      {/* Magic Link Option - Disabled (not configured) */}
+      {/* <button
         onClick={handleMagicLink}
         disabled={isLoading}
         className="w-full text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50"
       >
         Send me a magic link instead →
-      </button>
+      </button> */}
 
       {/* Sign Up Link */}
       <div className="text-center text-sm text-gray-600">

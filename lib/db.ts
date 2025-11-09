@@ -1,5 +1,6 @@
 import { drizzle } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client";
+import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import * as schema from "@/auth-schema";
 
 /**
@@ -31,9 +32,19 @@ function getDatabaseUrl(): string {
   );
 }
 
-const client = createClient({
-  url: getDatabaseUrl(),
-  authToken: process.env.TURSO_AUTH_TOKEN!,
-});
+// Lazy-initialize database client to avoid creating files during build
+let _db: LibSQLDatabase<typeof schema> | null = null;
 
-export const db = drizzle(client, { schema });
+export const db = new Proxy({} as LibSQLDatabase<typeof schema>, {
+  get(target, prop) {
+    // Initialize on first access
+    if (!_db) {
+      const client = createClient({
+        url: getDatabaseUrl(),
+        authToken: process.env.TURSO_AUTH_TOKEN || 'placeholder-token',
+      });
+      _db = drizzle(client, { schema });
+    }
+    return (_db as any)[prop];
+  }
+});
