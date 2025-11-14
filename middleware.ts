@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { authConfig, getRouteType } from "@/lib/auth.config";
-import { auth } from "@/lib/auth";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -22,28 +21,9 @@ export async function middleware(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check role-based permissions for API routes
-    try {
-      const session = await auth.api.getSession({
-        headers: request.headers,
-      });
-
-      if (session?.user) {
-        const { userCanAccessRoute } = await import("@/lib/permissions");
-        const hasAccess = await userCanAccessRoute(session.user.id, pathname);
-
-        if (!hasAccess) {
-          return NextResponse.json(
-            { error: "Forbidden: You don't have permission to access this resource" },
-            { status: 403 }
-          );
-        }
-      }
-    } catch (error) {
-      console.error("Error checking API permissions:", error);
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-    }
-
+    // Note: Role-based permission checks for API routes should be done
+    // in the API route handlers themselves, not in middleware
+    // (middleware runs in Edge Runtime which doesn't support database access)
     return NextResponse.next();
   }
 
@@ -66,33 +46,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(signInUrl);
   }
 
-  // For authenticated users, check role-based permissions
-  if (isAuthenticated) {
-    try {
-      // Get session to extract user ID
-      const session = await auth.api.getSession({
-        headers: request.headers,
-      });
-
-      if (session?.user) {
-        // Dynamically import to avoid edge runtime issues
-        const { userCanAccessRoute } = await import("@/lib/permissions");
-
-        const hasAccess = await userCanAccessRoute(session.user.id, pathname);
-
-        if (!hasAccess) {
-          // User doesn't have permission for this route
-          return NextResponse.redirect(
-            new URL("/unauthorized", request.url)
-          );
-        }
-      }
-    } catch (error) {
-      console.error("Error checking permissions:", error);
-      // On error, allow access (fail open) to prevent locking users out
-      // In production, you might want to fail closed instead
-    }
-  }
+  // Note: Role-based permission checks for pages should be done
+  // in server components or getServerSideProps, not in middleware
+  // (middleware runs in Edge Runtime which doesn't support database access)
 
   // Allow access to public routes
   return NextResponse.next();
