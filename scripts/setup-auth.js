@@ -115,8 +115,31 @@ async function setupAuth() {
           authToken: process.env.TURSO_AUTH_TOKEN,
         });
 
+        // Encrypt the secret before storing
+        // Note: Encryption uses ENCRYPTION_KEY from container environment
+        const crypto = require('crypto');
+
+        function encryptSecret(plaintext) {
+          const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
+          if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length !== 64) {
+            logWarning('ENCRYPTION_KEY not properly set - storing secret in plaintext (NOT RECOMMENDED)');
+            return plaintext;
+          }
+
+          const key = Buffer.from(ENCRYPTION_KEY, 'hex');
+          const iv = crypto.randomBytes(16);
+          const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+
+          let encrypted = cipher.update(plaintext, 'utf8', 'hex');
+          encrypted += cipher.final('hex');
+          const authTag = cipher.getAuthTag();
+
+          return `${iv.toString('hex')}:${encrypted}:${authTag.toString('hex')}`;
+        }
+
+        const encryptedSecret = encryptSecret(authSecret);
+
         // Store auth secret in system.secrets table (will be picked up by reload-secrets)
-        // Note: Value should be encrypted, but for now storing plain (encryption handled by secrets service)
         // Use unique name per interface since name column has UNIQUE constraint
         const secretName = `${interfaceId}__BETTER_AUTH_SECRET`;
 
@@ -126,7 +149,7 @@ async function setupAuth() {
                 ON CONFLICT(name) DO UPDATE SET encrypted_value = excluded.encrypted_value, updated_at = unixepoch()`,
           args: [
             secretName,
-            authSecret, // TODO: Should be encrypted with ENCRYPTION_KEY
+            encryptedSecret,
             `Auto-generated Better Auth secret for interface ${interfaceId}`,
             'interface',
             interfaceId
