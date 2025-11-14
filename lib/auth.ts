@@ -1,6 +1,8 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "./db";
+import { eq, and } from "drizzle-orm";
+import { user, roles, pagePermissions } from "@/auth-schema";
 
 const INTERFACE_ID = process.env.INTERFACE_ID || "unknown";
 
@@ -18,15 +20,7 @@ export const auth = betterAuth({
   // Email and password authentication
   emailAndPassword: {
     enabled: true,
-    // Email sending will be configured later
-    sendResetPassword: async ({ user, url, token }: any) => {
-      // TODO: Implement email sending
-      console.log(`Password reset for ${user.email}: ${url}`);
-    },
-    sendVerificationEmail: async ({ user, url, token }: any) => {
-      // TODO: Implement email verification
-      console.log(`Email verification for ${user.email}: ${url}`);
-    },
+    requireEmailVerification: false,
   },
 
   // Social OAuth providers
@@ -50,6 +44,65 @@ export const auth = betterAuth({
         defaultValue: INTERFACE_ID,
         input: false,
       },
+      roleId: {
+        type: "string",
+        required: false,
+        input: false,
+      },
+      roleName: {
+        type: "string",
+        required: false,
+        input: false,
+      },
+      allowedRoutes: {
+        type: "string", // JSON stringified array
+        required: false,
+        input: false,
+      },
+    },
+  },
+
+  // Hooks to populate session with role/permissions
+  hooks: {
+    after: async (context: any) => {
+      // Only add role info during session creation
+      if (context.type === "session.create" && context.session?.userId) {
+        try {
+          // Get user's role
+          const userData = await db.query.user.findFirst({
+            where: eq(user.id, context.session.userId),
+            columns: { roleId: true },
+          });
+
+          if (userData?.roleId) {
+            // Get role details
+            const roleData = await db.query.roles.findFirst({
+              where: eq(roles.id, userData.roleId),
+            });
+
+            if (roleData) {
+              // Get all allowed routes for this role
+              const permissions = await db.query.pagePermissions.findMany({
+                where: and(
+                  eq(pagePermissions.roleId, roleData.id),
+                  eq(pagePermissions.canAccess, true)
+                ),
+              });
+
+              const allowedRoutes = permissions.map(p => p.routePattern);
+
+              // Add to session
+              context.session.roleId = roleData.id;
+              context.session.roleName = roleData.name;
+              context.session.allowedRoutes = JSON.stringify(allowedRoutes);
+            }
+          }
+        } catch (error) {
+          console.error("Error adding role to session:", error);
+        }
+      }
+
+      return context;
     },
   },
 

@@ -20,7 +20,14 @@ export async function GET(request: NextRequest) {
       headers: request.headers,
     });
 
-    const interfaceId = session.user.interfaceId || process.env.INTERFACE_ID || "unknown";
+    if (!session) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const interfaceId = (session as any).interfaceId || process.env.INTERFACE_ID || "unknown";
 
     const interfaceRoles = await getInterfaceRoles(interfaceId);
 
@@ -45,6 +52,13 @@ export async function POST(request: NextRequest) {
       headers: request.headers,
     });
 
+    if (!session) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { name, description, isDefault } = body;
 
@@ -55,7 +69,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const interfaceId = session.user.interfaceId || process.env.INTERFACE_ID || "unknown";
+    const interfaceId = (session as any).interfaceId || process.env.INTERFACE_ID || "unknown";
 
     await createRole({
       id: crypto.randomUUID(),

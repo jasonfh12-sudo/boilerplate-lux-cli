@@ -223,7 +223,7 @@ export function FlowDevIndicator() {
                   flowId: cachedInfo.flowId,
                   webhookUrl: webhookMap[endpoint].webhookUrl,
                   workflowName: cachedInfo.workflowName,
-                  schema: cachedInfo.schema,
+                  schema: cachedInfo.schema || undefined,
                   draftWebhookTrigger: cachedInfo.draftWebhookTrigger,
                   deployedWebhookTrigger: cachedInfo.deployedWebhookTrigger,
                   lastPayload: payload,

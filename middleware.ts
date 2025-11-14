@@ -2,12 +2,69 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { authConfig, getRouteType } from "@/lib/auth.config";
 
+/**
+ * Helper to match route patterns with wildcards
+ */
+function matchesRoutePattern(route: string, pattern: string): boolean {
+  if (route === pattern) {
+    return true;
+  }
+
+  // Match /** (multi-level wildcard)
+  if (pattern.endsWith("/**")) {
+    const basePattern = pattern.slice(0, -3);
+    return route.startsWith(basePattern + "/") || route === basePattern;
+  }
+
+  // Match /* (single-level wildcard)
+  if (pattern.endsWith("/*")) {
+    const basePattern = pattern.slice(0, -2);
+    const routeParts = route.split("/");
+    const patternParts = basePattern.split("/");
+
+    if (routeParts.length !== patternParts.length + 1) {
+      return false;
+    }
+
+    return route.startsWith(basePattern + "/");
+  }
+
+  return false;
+}
+
+/**
+ * Check if user can access a route based on their allowed routes from session
+ */
+function canAccessRoute(allowedRoutes: string[], route: string): boolean {
+  for (const pattern of allowedRoutes) {
+    if (matchesRoutePattern(route, pattern)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Check if user has a session cookie
   const sessionToken = request.cookies.get("better-auth.session_token");
   const isAuthenticated = !!sessionToken;
+
+  // Try to extract session data from cookie (it's a JWT)
+  let sessionData: { allowedRoutes?: string } | null = null;
+  if (sessionToken) {
+    try {
+      // The session token is a JWT, decode the payload (base64)
+      const payload = sessionToken.value.split('.')[1];
+      if (payload) {
+        const decoded = JSON.parse(Buffer.from(payload, 'base64').toString());
+        sessionData = decoded;
+      }
+    } catch (error) {
+      console.error("Error decoding session token:", error);
+    }
+  }
 
   // Special handling for API routes
   if (pathname.startsWith("/api/")) {
@@ -21,9 +78,21 @@ export async function middleware(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Note: Role-based permission checks for API routes should be done
-    // in the API route handlers themselves, not in middleware
-    // (middleware runs in Edge Runtime which doesn't support database access)
+    // Check role-based permissions for API routes
+    if (sessionData?.allowedRoutes) {
+      try {
+        const allowedRoutes = JSON.parse(sessionData.allowedRoutes);
+
+        // Check if user has permission to access this API route
+        if (!canAccessRoute(allowedRoutes, pathname)) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+      } catch (error) {
+        console.error("Error parsing allowedRoutes:", error);
+        return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+      }
+    }
+
     return NextResponse.next();
   }
 
@@ -46,9 +115,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(signInUrl);
   }
 
-  // Note: Role-based permission checks for pages should be done
-  // in server components or getServerSideProps, not in middleware
-  // (middleware runs in Edge Runtime which doesn't support database access)
+  // Check role-based permissions for protected page routes
+  if (routeType === "protected" && sessionData?.allowedRoutes) {
+    try {
+      const allowedRoutes = JSON.parse(sessionData.allowedRoutes);
+
+      // Check if user has permission to access this page
+      if (!canAccessRoute(allowedRoutes, pathname)) {
+        // Redirect to unauthorized page or home
+        return NextResponse.redirect(new URL("/unauthorized", request.url));
+      }
+    } catch (error) {
+      console.error("Error parsing allowedRoutes:", error);
+      // If session is invalid, redirect to signin
+      const signInUrl = new URL(authConfig.redirects.toSignIn, request.url);
+      return NextResponse.redirect(signInUrl);
+    }
+  }
 
   // Allow access to public routes
   return NextResponse.next();

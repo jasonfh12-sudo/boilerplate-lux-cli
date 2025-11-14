@@ -1,6 +1,9 @@
 import { sql } from "drizzle-orm";
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
-import { roles } from "./permissions-schema";
+import { roles, pagePermissions } from "./permissions-schema";
+
+// Re-export for convenience
+export { roles, pagePermissions };
 
 export const user = sqliteTable("system.interface_user", {
   id: text("id").primaryKey(),
