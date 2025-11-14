@@ -2,6 +2,24 @@ import { sql } from "drizzle-orm";
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { user } from "./auth-schema";
 
+// Organizations table - customer organizations for multi-tenant interfaces
+export const organizations = sqliteTable("system.interface_organizations", {
+  id: text("id").primaryKey(),
+  interfaceId: text("interface_id").notNull(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull(), // unique identifier for the org
+  allowDomainSignup: integer("allow_domain_signup", { mode: "boolean" })
+    .default(false)
+    .notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
 // Roles table - custom roles per interface
 export const roles = sqliteTable("system.interface_roles", {
   id: text("id").primaryKey(),

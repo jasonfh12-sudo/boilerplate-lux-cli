@@ -1,8 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
+
+interface MatchingOrg {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+interface DomainCheckResult {
+  canAutoJoin: boolean;
+  matchingOrgs?: MatchingOrg[];
+  multiTenant?: boolean;
+}
 
 export function SignUpForm() {
   const router = useRouter();
@@ -11,19 +23,88 @@ export function SignUpForm() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [domainCheckResult, setDomainCheckResult] = useState<DomainCheckResult | null>(null);
+  const [selectedOrgId, setSelectedOrgId] = useState("");
+  const [newOrgName, setNewOrgName] = useState("");
+  const [isCheckingDomain, setIsCheckingDomain] = useState(false);
+
+  // Check domain when email changes
+  useEffect(() => {
+    const checkDomain = async () => {
+      if (!email || !email.includes("@")) {
+        setDomainCheckResult(null);
+        return;
+      }
+
+      setIsCheckingDomain(true);
+      try {
+        const response = await fetch("/api/auth/check-domain", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setDomainCheckResult(data);
+
+          // If single org found and multi-tenant, pre-select it
+          if (data.multiTenant && data.matchingOrgs?.length === 1) {
+            setSelectedOrgId(data.matchingOrgs[0].id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check domain:", err);
+      } finally {
+        setIsCheckingDomain(false);
+      }
+    };
+
+    const timeoutId = setTimeout(checkDomain, 500); // Debounce 500ms
+    return () => clearTimeout(timeoutId);
+  }, [email]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    // Validate multi-tenant organization selection
+    if (domainCheckResult?.multiTenant) {
+      if (domainCheckResult.matchingOrgs && domainCheckResult.matchingOrgs.length > 0) {
+        // User must select an existing org
+        if (!selectedOrgId) {
+          setError("Please select an organization to join");
+          return;
+        }
+      } else {
+        // User must create a new org
+        if (!newOrgName.trim()) {
+          setError("Please enter an organization name");
+          return;
+        }
+      }
+    }
+
     setIsLoading(true);
 
     try {
-      await authClient.signUp.email({
+      const signupData: any = {
         email,
         password,
         name,
         callbackURL: "/",
-      });
+      };
+
+      // Add organization info if multi-tenant
+      if (domainCheckResult?.multiTenant) {
+        if (selectedOrgId) {
+          signupData.organizationId = selectedOrgId;
+        } else if (newOrgName) {
+          signupData.newOrganizationName = newOrgName;
+        }
+      }
+
+      await authClient.signUp.email(signupData);
       router.push("/");
     } catch (err: any) {
       setError(err.message || "Failed to create account");
@@ -132,6 +213,60 @@ export function SignUpForm() {
             Must be at least 8 characters
           </p>
         </div>
+
+        {/* Single-Tenant Auto-Join Message */}
+        {domainCheckResult?.canAutoJoin && !domainCheckResult.multiTenant && (
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-900">
+              You'll automatically join the existing organization for your email domain.
+            </p>
+          </div>
+        )}
+
+        {/* Multi-Tenant Organization Selection */}
+        {domainCheckResult?.multiTenant && domainCheckResult.matchingOrgs && domainCheckResult.matchingOrgs.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Select Organization <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={selectedOrgId}
+              onChange={(e) => setSelectedOrgId(e.target.value)}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
+            >
+              <option value="">Choose an organization...</option>
+              {domainCheckResult.matchingOrgs.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Users with your email domain already exist in these organizations
+            </p>
+          </div>
+        )}
+
+        {/* Multi-Tenant New Organization */}
+        {domainCheckResult?.multiTenant && (!domainCheckResult.matchingOrgs || domainCheckResult.matchingOrgs.length === 0) && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Organization Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={newOrgName}
+              onChange={(e) => setNewOrgName(e.target.value)}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
+              placeholder="Acme Corp"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              You'll be the first user in this organization
+            </p>
+          </div>
+        )}
 
         {error && (
           <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">

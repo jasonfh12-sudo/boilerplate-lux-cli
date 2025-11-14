@@ -1,9 +1,9 @@
 import { sql } from "drizzle-orm";
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
-import { roles, pagePermissions } from "./permissions-schema";
+import { organizations, roles, pagePermissions } from "./permissions-schema";
 
 // Re-export for convenience
-export { roles, pagePermissions };
+export { organizations, roles, pagePermissions };
 
 export const user = sqliteTable("system.interface_user", {
   id: text("id").primaryKey(),
@@ -15,6 +15,7 @@ export const user = sqliteTable("system.interface_user", {
   image: text("image"),
   interfaceId: text("interface_id"),
   roleId: text("role_id").references(() => roles.id, { onDelete: "set null" }),
+  organizationId: text("organization_id"),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
     .notNull(),
@@ -40,6 +41,7 @@ export const session = sqliteTable("system.interface_session", {
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   interfaceId: text("interface_id"),
+  organizationId: text("organization_id"),
 });
 
 export const account = sqliteTable("system.interface_account", {

@@ -52,7 +52,12 @@ export async function middleware(request: NextRequest) {
   const isAuthenticated = !!sessionToken;
 
   // Try to extract session data from cookie (it's a JWT)
-  let sessionData: { allowedRoutes?: string } | null = null;
+  let sessionData: {
+    allowedRoutes?: string;
+    organizationId?: string;
+    userId?: string;
+    roleId?: string;
+  } | null = null;
   if (sessionToken) {
     try {
       // The session token is a JWT, decode the payload (base64)
@@ -91,6 +96,26 @@ export async function middleware(request: NextRequest) {
         console.error("Error parsing allowedRoutes:", error);
         return NextResponse.json({ error: "Invalid session" }, { status: 401 });
       }
+    }
+
+    // Inject organization and user context as headers for API routes
+    if (sessionData) {
+      const requestHeaders = new Headers(request.headers);
+      if (sessionData.organizationId) {
+        requestHeaders.set("x-organization-id", sessionData.organizationId);
+      }
+      if (sessionData.userId) {
+        requestHeaders.set("x-user-id", sessionData.userId);
+      }
+      if (sessionData.roleId) {
+        requestHeaders.set("x-role-id", sessionData.roleId);
+      }
+
+      return NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      });
     }
 
     return NextResponse.next();

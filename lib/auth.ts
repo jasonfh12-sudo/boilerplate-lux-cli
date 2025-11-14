@@ -2,7 +2,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
-import { user, roles, pagePermissions } from "@/auth-schema";
+import { user, roles, pagePermissions, organizations } from "@/auth-schema";
 
 const INTERFACE_ID = process.env.INTERFACE_ID || "unknown";
 
@@ -44,6 +44,11 @@ export const auth = betterAuth({
         defaultValue: INTERFACE_ID,
         input: false,
       },
+      organizationId: {
+        type: "string",
+        required: false,
+        input: false,
+      },
       roleId: {
         type: "string",
         required: false,
@@ -68,11 +73,16 @@ export const auth = betterAuth({
       // Only add role info during session creation
       if (context.type === "session.create" && context.session?.userId) {
         try {
-          // Get user's role
+          // Get user's role and organization
           const userData = await db.query.user.findFirst({
             where: eq(user.id, context.session.userId),
-            columns: { roleId: true },
+            columns: { roleId: true, organizationId: true },
           });
+
+          // Add organization ID to session
+          if (userData?.organizationId) {
+            context.session.organizationId = userData.organizationId;
+          }
 
           if (userData?.roleId) {
             // Get role details
@@ -122,6 +132,119 @@ export const auth = betterAuth({
         defaultValue: INTERFACE_ID,
         input: false,
       },
+      organizationId: {
+        type: "string",
+        required: false,
+        input: true, // Allow passing organizationId during signup
+      },
     },
   },
+
+  // Additional plugins for organization handling
+  plugins: [
+    {
+      id: "organization-handler",
+      hooks: {
+        before: [
+          {
+            matcher: (context) => context.path === "/sign-up/email",
+            handler: async (ctx) => {
+              const body = ctx.body as any;
+              const newOrganizationName = body.newOrganizationName;
+              const CC_CLOUD_URL = process.env.CC_CLOUD_URL || process.env.NEXT_PUBLIC_CC_CLOUD_URL || "http://localhost:8000";
+              const ORG_ID = process.env.CLERK_ORG_ID;
+
+              // If creating a new organization, call cc_cloud to create it
+              if (newOrganizationName && !body.organizationId) {
+                try {
+                  const response = await fetch(`${CC_CLOUD_URL}/auth/orgs`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      interfaceId: INTERFACE_ID,
+                      orgId: ORG_ID,
+                      name: newOrganizationName,
+                      allowDomainSignup: false,
+                    }),
+                  });
+
+                  if (response.ok) {
+                    const data = await response.json();
+                    // Store orgId in context for after hook
+                    (ctx as any)._pendingOrgId = data.organization.id;
+                  }
+                } catch (error) {
+                  console.error("Failed to create organization:", error);
+                }
+              } else if (body.organizationId) {
+                // Store existing orgId for after hook
+                (ctx as any)._pendingOrgId = body.organizationId;
+              }
+
+              return ctx;
+            },
+          },
+        ],
+        after: [
+          {
+            matcher: (context) => context.path === "/sign-up/email",
+            handler: async (ctx) => {
+              // After user is created by Better Auth, update organizationId
+              const pendingOrgId = (ctx as any)._pendingOrgId;
+              const userId = ctx.user?.id;
+
+              if (pendingOrgId && userId) {
+                try {
+                  // Check if this is the first user in the organization
+                  const existingUsers = await db
+                    .select({ id: user.id })
+                    .from(user)
+                    .where(eq(user.organizationId, pendingOrgId))
+                    .limit(1);
+
+                  const isFirstUser = existingUsers.length === 0;
+
+                  // Get or create default admin role
+                  let adminRoleId: string | null = null;
+                  if (isFirstUser) {
+                    const adminRole = await db
+                      .select({ id: roles.id })
+                      .from(roles)
+                      .where(eq(roles.name, "Admin"))
+                      .limit(1);
+
+                    if (adminRole.length > 0) {
+                      adminRoleId = adminRole[0].id;
+                    }
+                  }
+
+                  // Update user with organizationId and roleId (if first user)
+                  const updateData: any = { organizationId: pendingOrgId };
+                  if (adminRoleId) {
+                    updateData.roleId = adminRoleId;
+                  }
+
+                  await db
+                    .update(user)
+                    .set(updateData)
+                    .where(eq(user.id, userId));
+
+                  console.log("Updated user with organizationId:", {
+                    userId,
+                    organizationId: pendingOrgId,
+                    isFirstUser,
+                    roleId: adminRoleId
+                  });
+                } catch (error) {
+                  console.error("Failed to update user organizationId:", error);
+                }
+              }
+
+              return ctx;
+            },
+          },
+        ],
+      },
+    },
+  ],
 });

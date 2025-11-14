@@ -168,6 +168,16 @@ export function SignInForm() {
         </button>
       </form>
 
+      {/* Forgot Password Link */}
+      <div className="text-center">
+        <a
+          href="/auth/forgot-password"
+          className="text-sm text-gray-600 hover:text-gray-900"
+        >
+          Forgot your password?
+        </a>
+      </div>
+
       {/* Magic Link Option - Disabled (not configured) */}
       {/* <button
         onClick={handleMagicLink}
