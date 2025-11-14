@@ -117,12 +117,15 @@ async function setupAuth() {
 
         // Store auth secret in system.secrets table (will be picked up by reload-secrets)
         // Note: Value should be encrypted, but for now storing plain (encryption handled by secrets service)
+        // Use unique name per interface since name column has UNIQUE constraint
+        const secretName = `${interfaceId}__BETTER_AUTH_SECRET`;
+
         await client.execute({
           sql: `INSERT INTO "system.secrets" (name, encrypted_value, description, source, interface_id)
                 VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT(name) DO UPDATE SET encrypted_value = excluded.encrypted_value, updated_at = unixepoch()`,
           args: [
-            'BETTER_AUTH_SECRET',
+            secretName,
             authSecret, // TODO: Should be encrypted with ENCRYPTION_KEY
             `Auto-generated Better Auth secret for interface ${interfaceId}`,
             'interface',
