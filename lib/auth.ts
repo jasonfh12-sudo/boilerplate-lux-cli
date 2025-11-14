@@ -1,14 +1,24 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { organization } from "better-auth/plugins";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
-import { user, roles, pagePermissions, organizations } from "@/auth-schema";
+import { user, session, account, verification } from "@/auth-schema";
+import { organization as orgTable, member, invitation } from "@/permissions-schema";
 
 const INTERFACE_ID = process.env.INTERFACE_ID || "unknown";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "sqlite",
+    schema: {
+      user,
+      session,
+      account,
+      verification,
+      organization: orgTable,
+      member,
+      invitation,
+    },
   }),
 
   // Base URL for callbacks and redirects
@@ -33,7 +43,7 @@ export const auth = betterAuth({
       : undefined,
   },
 
-  // Session configuration
+  // Session configuration with interface tracking
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // Update session every 24 hours
@@ -44,75 +54,6 @@ export const auth = betterAuth({
         defaultValue: INTERFACE_ID,
         input: false,
       },
-      organizationId: {
-        type: "string",
-        required: false,
-        input: false,
-      },
-      roleId: {
-        type: "string",
-        required: false,
-        input: false,
-      },
-      roleName: {
-        type: "string",
-        required: false,
-        input: false,
-      },
-      allowedRoutes: {
-        type: "string", // JSON stringified array
-        required: false,
-        input: false,
-      },
-    },
-  },
-
-  // Hooks to populate session with role/permissions
-  hooks: {
-    after: async (context: any) => {
-      // Only add role info during session creation
-      if (context.type === "session.create" && context.session?.userId) {
-        try {
-          // Get user's role and organization
-          const userData = await db.query.user.findFirst({
-            where: eq(user.id, context.session.userId),
-            columns: { roleId: true, organizationId: true },
-          });
-
-          // Add organization ID to session
-          if (userData?.organizationId) {
-            context.session.organizationId = userData.organizationId;
-          }
-
-          if (userData?.roleId) {
-            // Get role details
-            const roleData = await db.query.roles.findFirst({
-              where: eq(roles.id, userData.roleId),
-            });
-
-            if (roleData) {
-              // Get all allowed routes for this role
-              const permissions = await db.query.pagePermissions.findMany({
-                where: and(
-                  eq(pagePermissions.roleId, roleData.id),
-                  eq(pagePermissions.canAccess, true)
-                ),
-              });
-
-              const allowedRoutes = permissions.map(p => p.routePattern);
-
-              // Add to session
-              context.session.roleId = roleData.id;
-              context.session.roleName = roleData.name;
-              context.session.allowedRoutes = JSON.stringify(allowedRoutes);
-            }
-          }
-        } catch (error) {
-          console.error("Error adding role to session:", error);
-        }
-      }
-
-      return context;
     },
   },
 
@@ -132,133 +73,51 @@ export const auth = betterAuth({
         defaultValue: INTERFACE_ID,
         input: false,
       },
-      organizationId: {
-        type: "string",
-        required: false,
-        input: true, // Allow passing organizationId during signup
-      },
     },
   },
 
-  // Additional plugins for organization handling
+  // Enable Better Auth's native organization plugin
   plugins: [
-    {
-      id: "organization-handler",
-      hooks: {
-        before: [
-          {
-            matcher: (context) => context.path === "/sign-up/email",
-            handler: async (ctx) => {
-              const body = ctx.body as any;
-              const newOrganizationName = body.newOrganizationName;
-              const CC_CLOUD_URL = process.env.CC_CLOUD_URL || process.env.NEXT_PUBLIC_CC_CLOUD_URL || "http://localhost:8000";
-              const ORG_ID = process.env.CLERK_ORG_ID;
+    organization({
+      // Allow users to create organizations
+      allowUserToCreateOrganization: true,
 
-              // If creating a new organization, call cc_cloud to create it
-              if (newOrganizationName && !body.organizationId) {
-                try {
-                  const response = await fetch(`${CC_CLOUD_URL}/auth/orgs`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      interfaceId: INTERFACE_ID,
-                      orgId: ORG_ID,
-                      name: newOrganizationName,
-                      allowDomainSignup: false,
-                    }),
-                  });
+      // Maximum organizations per user
+      organizationLimit: 10,
 
-                  if (response.ok) {
-                    const data = await response.json();
-                    // Store orgId in context for after hook
-                    (ctx as any)._pendingOrgId = data.organization.id;
-                  }
-                } catch (error) {
-                  console.error("Failed to create organization:", error);
-                }
-              } else if (body.organizationId) {
-                // Store existing orgId for after hook
-                (ctx as any)._pendingOrgId = body.organizationId;
-              }
+      // Maximum members per organization
+      membershipLimit: 100,
 
-              return ctx;
-            },
-          },
-        ],
-        after: [
-          {
-            matcher: (context) => context.path === "/sign-up/email",
-            handler: async (ctx) => {
-              // After user is created by Better Auth, update organizationId
-              const pendingOrgId = (ctx as any)._pendingOrgId;
-              const body = ctx.body as any;
-              const email = body.email;
+      // Invitation expires in 7 days (604800 seconds)
+      invitationExpiresIn: 604800,
 
-              if (pendingOrgId && email) {
-                // Get the user that was just created
-                const createdUser = await db
-                  .select({ id: user.id })
-                  .from(user)
-                  .where(eq(user.email, email.toLowerCase()))
-                  .limit(1);
+      // Email verification not required for invitations
+      requireEmailVerificationOnInvitation: false,
 
-                if (createdUser.length === 0) {
-                  console.error("User not found after signup:", email);
-                  return ctx;
-                }
+      // Creator gets owner role by default
+      creatorRole: "owner",
 
-                const userId = createdUser[0].id;
-                try {
-                  // Check if this is the first user in the organization
-                  const existingUsers = await db
-                    .select({ id: user.id })
-                    .from(user)
-                    .where(eq(user.organizationId, pendingOrgId))
-                    .limit(1);
+      // Custom invitation email sending
+      async sendInvitationEmail(data) {
+        console.log("[BETTER-AUTH] Organization invitation:", {
+          to: data.email,
+          from: data.inviter.email,
+          organizationName: data.organization.name,
+          invitationId: data.id
+        });
 
-                  const isFirstUser = existingUsers.length === 0;
+        // TODO: Integrate with email service (Resend, SendGrid, etc.)
+        // For now, log the invitation link
+        const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL}/auth/accept-invite?token=${data.id}`;
+        console.log("[BETTER-AUTH] Invitation link:", inviteLink);
 
-                  // Get or create default admin role
-                  let adminRoleId: string | null = null;
-                  if (isFirstUser) {
-                    const adminRole = await db
-                      .select({ id: roles.id })
-                      .from(roles)
-                      .where(eq(roles.name, "Admin"))
-                      .limit(1);
-
-                    if (adminRole.length > 0) {
-                      adminRoleId = adminRole[0].id;
-                    }
-                  }
-
-                  // Update user with organizationId and roleId (if first user)
-                  const updateData: any = { organizationId: pendingOrgId };
-                  if (adminRoleId) {
-                    updateData.roleId = adminRoleId;
-                  }
-
-                  await db
-                    .update(user)
-                    .set(updateData)
-                    .where(eq(user.id, userId));
-
-                  console.log("Updated user with organizationId:", {
-                    userId,
-                    organizationId: pendingOrgId,
-                    isFirstUser,
-                    roleId: adminRoleId
-                  });
-                } catch (error) {
-                  console.error("Failed to update user organizationId:", error);
-                }
-              }
-
-              return ctx;
-            },
-          },
-        ],
+        // In production, send actual email here:
+        // await sendEmail({
+        //   to: data.email,
+        //   subject: `You've been invited to ${data.organization.name}`,
+        //   html: `Click here to accept: ${inviteLink}`
+        // });
       },
-    },
+    }),
   ],
 });
