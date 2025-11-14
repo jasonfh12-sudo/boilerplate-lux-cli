@@ -191,9 +191,23 @@ export const auth = betterAuth({
             handler: async (ctx) => {
               // After user is created by Better Auth, update organizationId
               const pendingOrgId = (ctx as any)._pendingOrgId;
-              const userId = ctx.user?.id;
+              const body = ctx.body as any;
+              const email = body.email;
 
-              if (pendingOrgId && userId) {
+              if (pendingOrgId && email) {
+                // Get the user that was just created
+                const createdUser = await db
+                  .select({ id: user.id })
+                  .from(user)
+                  .where(eq(user.email, email.toLowerCase()))
+                  .limit(1);
+
+                if (createdUser.length === 0) {
+                  console.error("User not found after signup:", email);
+                  return ctx;
+                }
+
+                const userId = createdUser[0].id;
                 try {
                   // Check if this is the first user in the organization
                   const existingUsers = await db
