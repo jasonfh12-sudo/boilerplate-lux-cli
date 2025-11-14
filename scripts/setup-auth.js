@@ -95,12 +95,51 @@ async function setupAuth() {
   // Check/generate Better Auth secret
   logSection('Auth Secret');
 
-  if (!process.env.BETTER_AUTH_SECRET) {
-    const secret = crypto.randomBytes(32).toString('hex');
-    logWarning('BETTER_AUTH_SECRET not set');
-    log(`Generated secret: ${secret}`);
-    log('In production, this should be set at the container level.');
-    log('For now, add this to your environment variables.');
+  const interfaceId = process.env.INTERFACE_ID;
+  let authSecret = process.env.BETTER_AUTH_SECRET;
+
+  if (!authSecret) {
+    authSecret = crypto.randomBytes(32).toString('hex');
+    logWarning('BETTER_AUTH_SECRET not set - generating new secret');
+    log(`Generated secret: ${authSecret.substring(0, 16)}...`);
+
+    // Save to system.org_secrets table if we have database access
+    if (hasOrgId && interfaceId) {
+      try {
+        const { createClient } = require('@libsql/client');
+        const sanitizedOrgId = process.env.CLERK_ORG_ID.replace(/_/g, '').toLowerCase();
+        const dbUrl = `libsql://${sanitizedOrgId}-lux-ai-labs.aws-us-west-2.turso.io`;
+
+        const client = createClient({
+          url: dbUrl,
+          authToken: process.env.TURSO_AUTH_TOKEN,
+        });
+
+        // Store auth secret in system.secrets table (will be picked up by reload-secrets)
+        // Note: Value should be encrypted, but for now storing plain (encryption handled by secrets service)
+        await client.execute({
+          sql: `INSERT INTO "system.secrets" (name, encrypted_value, description, source, interface_id)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(name) DO UPDATE SET encrypted_value = excluded.encrypted_value, updated_at = unixepoch()`,
+          args: [
+            'BETTER_AUTH_SECRET',
+            authSecret, // TODO: Should be encrypted with ENCRYPTION_KEY
+            `Auto-generated Better Auth secret for interface ${interfaceId}`,
+            'interface',
+            interfaceId
+          ]
+        });
+
+        logSuccess('Auth secret saved to system.secrets table');
+        log('Secret will be auto-loaded into .env.local on container restart');
+      } catch (error) {
+        logWarning(`Could not save auth secret to database: ${error.message}`);
+        log('Secret will need to be set as environment variable');
+      }
+    } else {
+      log('Skipping database save - INTERFACE_ID not set');
+      log('For now, add this to your environment variables.');
+    }
   } else {
     logSuccess('BETTER_AUTH_SECRET configured');
   }

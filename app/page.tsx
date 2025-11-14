@@ -47,16 +47,24 @@ export default function Home() {
             </p>
             <div className="flex gap-4 justify-center pt-4">
               <Button size="lg" asChild>
-                <Link href="/examples/dashboard">View Examples</Link>
+                <Link href="/auth/signin">Sign In</Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
+                <Link href="/auth/signup">Sign Up</Link>
+              </Button>
+            </div>
+            <div className="flex gap-4 justify-center pt-2">
+              <Button size="sm" variant="ghost" asChild>
+                <Link href="/examples/dashboard">View Examples</Link>
+              </Button>
+              <Button size="sm" variant="ghost" asChild>
                 <a
                   href="https://github.com"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2"
                 >
-                  <Github className="h-5 w-5" />
+                  <Github className="h-4 w-4" />
                   GitHub
                 </a>
               </Button>

@@ -1,7 +1,10 @@
 import { drizzle } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
-import * as schema from "@/auth-schema";
+import * as authSchema from "@/auth-schema";
+import * as permissionsSchema from "@/permissions-schema";
+
+const schema = { ...authSchema, ...permissionsSchema };
 
 /**
  * Get Turso database URL for the current org

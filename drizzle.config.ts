@@ -29,7 +29,7 @@ function getDatabaseUrl(): string {
 }
 
 export default {
-  schema: "./auth-schema.ts",
+  schema: ["./auth-schema.ts", "./permissions-schema.ts"],
   out: "./drizzle",
   dialect: "turso",
   dbCredentials: {

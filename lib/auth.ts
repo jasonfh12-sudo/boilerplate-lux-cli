@@ -2,6 +2,8 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "./db";
 
+const INTERFACE_ID = process.env.INTERFACE_ID || "unknown";
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "sqlite",
@@ -41,12 +43,32 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // Update session every 24 hours
+    additionalFields: {
+      interfaceId: {
+        type: "string",
+        required: false,
+        defaultValue: INTERFACE_ID,
+        input: false,
+      },
+    },
   },
 
   // Advanced options
   advanced: {
     database: {
       generateId: () => crypto.randomUUID(),
+    },
+  },
+
+  // User additional fields
+  user: {
+    additionalFields: {
+      interfaceId: {
+        type: "string",
+        required: false,
+        defaultValue: INTERFACE_ID,
+        input: false,
+      },
     },
   },
 });

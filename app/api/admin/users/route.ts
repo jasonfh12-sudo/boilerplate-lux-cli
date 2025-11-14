@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { user, session } from "@/auth-schema";
 import { eq, desc } from "drizzle-orm";
+import { assignRoleToUser } from "@/lib/permissions";
 
 /**
  * GET /api/admin/users - List all users
@@ -29,6 +30,7 @@ export async function GET(req: NextRequest) {
         name: user.name,
         emailVerified: user.emailVerified,
         image: user.image,
+        roleId: user.roleId,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       })
@@ -59,6 +61,42 @@ export async function GET(req: NextRequest) {
     console.error("[API] Error fetching users:", error);
     return NextResponse.json(
       { error: "Failed to fetch users" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST /api/admin/users/assign-role - Assign a role to a user
+ */
+export async function POST(req: NextRequest) {
+  try {
+    // Check if requester is authenticated
+    const authSession = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!authSession) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { userId, roleId } = body;
+
+    if (!userId || !roleId) {
+      return NextResponse.json(
+        { error: "userId and roleId are required" },
+        { status: 400 }
+      );
+    }
+
+    await assignRoleToUser(userId, roleId);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[API] Error assigning role:", error);
+    return NextResponse.json(
+      { error: "Failed to assign role" },
       { status: 500 }
     );
   }

@@ -11,7 +11,6 @@ export const authConfig = {
    * Users will be redirected to sign-in if not authenticated
    */
   protectedRoutes: [
-    "/", // Home page is protected (dashboard)
     "/dashboard",
     "/profile",
     "/settings",
@@ -35,11 +34,14 @@ export const authConfig = {
    * These routes are accessible whether authenticated or not
    */
   publicRoutes: [
+    "/",
     "/about",
     "/pricing",
     "/contact",
     "/blog",
     "/docs",
+    "/examples",
+    "/auth/logout",
     // Add more public routes here
   ],
 
@@ -48,10 +50,10 @@ export const authConfig = {
    */
   redirects: {
     // Where to redirect after successful sign-in
-    afterSignIn: "/dashboard",
+    afterSignIn: "/",
 
     // Where to redirect authenticated users who try to access auth pages
-    afterAuth: "/dashboard",
+    afterAuth: "/",
 
     // Where to redirect unauthenticated users
     toSignIn: "/auth/signin",

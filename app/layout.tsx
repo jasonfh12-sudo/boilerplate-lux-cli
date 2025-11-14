@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { FlowDevIndicator } from "@/components/FlowDevIndicator";
 
 export const metadata: Metadata = {
   title: "Next.js App",
@@ -17,6 +18,7 @@ export default function RootLayout({
       <body className="antialiased">
         {children}
         <Toaster />
+        <FlowDevIndicator />
       </body>
     </html>
   );
