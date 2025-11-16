@@ -96,8 +96,9 @@ export type FilterConfig = {
 
 // Better Auth Organization Tables
 // These are required by Better Auth's organization plugin
+// IMPORTANT: Must use "system.interface_*" prefix to match Better Auth's expected table names
 
-export const organization = sqliteTable("system.organization", {
+export const organization = sqliteTable("system.interface_organization", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
@@ -108,7 +109,7 @@ export const organization = sqliteTable("system.organization", {
   metadata: text("metadata"),
 });
 
-export const member = sqliteTable("system.member", {
+export const member = sqliteTable("system.interface_member", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id")
     .notNull()
@@ -116,13 +117,15 @@ export const member = sqliteTable("system.member", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  role: text("role").default("member").notNull(),
+  role: text("role").default("member").notNull(), // Better Auth role: owner, admin, member
+  customRoleId: text("custom_role_id")
+    .references(() => roles.id, { onDelete: "set null" }), // Optional custom role override
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
     .notNull(),
 });
 
-export const invitation = sqliteTable("system.invitation", {
+export const invitation = sqliteTable("system.interface_invitation", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id")
     .notNull()
@@ -134,4 +137,5 @@ export const invitation = sqliteTable("system.invitation", {
   inviterId: text("inviter_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }),
 });

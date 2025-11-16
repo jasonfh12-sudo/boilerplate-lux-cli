@@ -47,6 +47,12 @@ function canAccessRoute(allowedRoutes: string[], route: string): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // No-auth mode: Bypass all authentication checks
+  const authMode = process.env.AUTH_MODE || 'multi-tenant';
+  if (authMode === 'none') {
+    return NextResponse.next();
+  }
+
   // Check if user has a session cookie
   const sessionToken = request.cookies.get("better-auth.session_token");
   const isAuthenticated = !!sessionToken;

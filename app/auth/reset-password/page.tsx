@@ -7,11 +7,15 @@ function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+  const email = searchParams.get("email");
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const appName = process.env.NEXT_PUBLIC_APP_NAME || "Lux AI";
 
   useEffect(() => {
     if (!token) {
@@ -33,6 +37,11 @@ function ResetPasswordContent() {
       return;
     }
 
+    if (!token) {
+      setError("Invalid reset token");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -40,19 +49,25 @@ function ResetPasswordContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          newPassword: password,
           token,
-          password,
         }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to reset password");
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        // Response wasn't JSON (likely 500 error)
+        throw new Error("Server error - please try again or request a new reset link");
       }
 
-      // Success - redirect to signin
-      router.push("/auth/signin?reset=true");
+      if (!response.ok) {
+        throw new Error(data.message || data.error || "Failed to reset password");
+      }
+
+      // Success - show success state
+      setSuccess(true);
     } catch (err: any) {
       setError(err.message || "Failed to reset password");
     } finally {
@@ -78,14 +93,49 @@ function ResetPasswordContent() {
     );
   }
 
+  // Success state
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900">Password Reset Successful</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Your password has been successfully reset for {email || "your account"}
+            </p>
+          </div>
+
+          <div className="mt-8">
+            <button
+              onClick={() => router.push("/auth/signin")}
+              className="w-full px-4 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
+            >
+              Go to Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <h2 className="text-3xl font-bold text-gray-900">Reset Password</h2>
           <p className="mt-2 text-sm text-gray-600">
-            Enter your new password below
+            {appName}
           </p>
+          {email && (
+            <p className="mt-1 text-sm text-gray-500">
+              Resetting password for: <span className="font-medium text-gray-700">{email}</span>
+            </p>
+          )}
         </div>
 
         <div className="mt-8 bg-white py-8 px-6 shadow rounded-lg">

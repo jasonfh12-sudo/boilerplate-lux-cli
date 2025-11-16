@@ -36,21 +36,21 @@ export default function Home() {
           {/* Hero Section */}
           <div className="text-center space-y-4">
             <Badge variant="secondary" className="mb-4">
-              Next.js 15 + shadcn/ui
+              Powered by Lux AI Labs
             </Badge>
             <h1 className="text-5xl font-bold tracking-tight">
-              Next.js Boilerplate
+              Lux Boilerplate
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Production-ready Next.js starter with shadcn/ui components, Tailwind CSS,
-              and TypeScript. Perfect for AI-generated interfaces.
+              Production-ready boilerplate for building with Lux. Includes multi-tenant auth,
+              beautiful UI components, and everything you need to ship fast.
             </p>
             <div className="flex gap-4 justify-center pt-4">
               <Button size="lg" asChild>
                 <Link href="/auth/signin">Sign In</Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
-                <Link href="/auth/signup">Sign Up</Link>
+                <Link href="/auth/signup">Get Started</Link>
               </Button>
             </div>
             <div className="flex gap-4 justify-center pt-2">
@@ -58,15 +58,7 @@ export default function Home() {
                 <Link href="/examples/dashboard">View Examples</Link>
               </Button>
               <Button size="sm" variant="ghost" asChild>
-                <a
-                  href="https://github.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2"
-                >
-                  <Github className="h-4 w-4" />
-                  GitHub
-                </a>
+                <Link href="/settings">Settings</Link>
               </Button>
             </div>
           </div>
@@ -75,39 +67,39 @@ export default function Home() {
           <div className="grid md:grid-cols-3 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>shadcn/ui</CardTitle>
+                <CardTitle>Multi-Tenant Auth</CardTitle>
+                <CardDescription>Three authentication modes</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Built with Better Auth. Switch between no-auth, single-tenant, and
+                  multi-tenant modes with a single environment variable.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Beautiful UI</CardTitle>
                 <CardDescription>19 pre-installed components</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Beautiful, accessible components built with Radix UI and Tailwind CSS.
-                  Ready to use in your projects.
+                  shadcn/ui components with Tailwind CSS. Fully customizable and
+                  accessible out of the box.
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>TypeScript</CardTitle>
-                <CardDescription>Fully typed codebase</CardDescription>
+                <CardTitle>Lux-Ready</CardTitle>
+                <CardDescription>Optimized for Lux platform</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  End-to-end type safety with TypeScript. Catch errors before they
-                  reach production.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>AI-Ready</CardTitle>
-                <CardDescription>Optimized for AI code generation</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Clear patterns and examples for AI assistants to generate consistent,
-                  high-quality code.
+                  Integrates seamlessly with Lux workflows, agents, and tools.
+                  Perfect starting point for AI-powered applications.
                 </p>
               </CardContent>
             </Card>
@@ -146,10 +138,12 @@ export default function Home() {
                 "Next.js 15",
                 "React 19",
                 "TypeScript",
-                "Tailwind CSS 3",
+                "Better Auth",
+                "Drizzle ORM",
+                "Turso/LibSQL",
+                "Tailwind CSS",
                 "shadcn/ui",
-                "Radix UI",
-                "Lucide Icons",
+                "Lux Platform",
               ].map((tech) => (
                 <Badge key={tech} variant="secondary">
                   {tech}

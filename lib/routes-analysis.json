@@ -1,0 +1,295 @@
+[
+  {
+    "page": "/",
+    "filePath": "app/page.tsx",
+    "apiFetches": [],
+    "pageType": "user-facing",
+    "confidence": "high",
+    "schemas": []
+  },
+  {
+    "page": "/unauthorized",
+    "filePath": "app/unauthorized/page.tsx",
+    "apiFetches": [],
+    "pageType": "user-facing",
+    "confidence": "low",
+    "schemas": []
+  },
+  {
+    "page": "/settings",
+    "filePath": "app/settings/page.tsx",
+    "apiFetches": [],
+    "pageType": "user-facing",
+    "confidence": "low",
+    "schemas": []
+  },
+  {
+    "page": "/integrations",
+    "filePath": "app/integrations/page.tsx",
+    "apiFetches": [],
+    "pageType": "user-facing",
+    "confidence": "low",
+    "schemas": []
+  },
+  {
+    "page": "/examples/table",
+    "filePath": "app/examples/table/page.tsx",
+    "apiFetches": [],
+    "pageType": "user-facing",
+    "confidence": "high",
+    "schemas": []
+  },
+  {
+    "page": "/examples/form",
+    "filePath": "app/examples/form/page.tsx",
+    "apiFetches": [],
+    "pageType": "user-facing",
+    "confidence": "high",
+    "schemas": []
+  },
+  {
+    "page": "/examples/dashboard",
+    "filePath": "app/examples/dashboard/page.tsx",
+    "apiFetches": [],
+    "pageType": "user-facing",
+    "confidence": "high",
+    "schemas": []
+  },
+  {
+    "page": "/auth/signup",
+    "filePath": "app/auth/signup/page.tsx",
+    "apiFetches": [],
+    "pageType": "user-facing",
+    "confidence": "low",
+    "schemas": []
+  },
+  {
+    "page": "/auth/signin",
+    "filePath": "app/auth/signin/page.tsx",
+    "apiFetches": [],
+    "pageType": "user-facing",
+    "confidence": "low",
+    "schemas": []
+  },
+  {
+    "page": "/auth/reset-password",
+    "filePath": "app/auth/reset-password/page.tsx",
+    "apiFetches": [
+      "/api/auth/reset-password"
+    ],
+    "pageType": "flow",
+    "confidence": "medium",
+    "schemas": []
+  },
+  {
+    "page": "/auth/logout",
+    "filePath": "app/auth/logout/page.tsx",
+    "apiFetches": [],
+    "pageType": "redirect",
+    "confidence": "medium",
+    "schemas": []
+  },
+  {
+    "page": "/auth/forgot-password",
+    "filePath": "app/auth/forgot-password/page.tsx",
+    "apiFetches": [
+      "/api/auth/forget-password"
+    ],
+    "pageType": "user-facing",
+    "confidence": "high",
+    "schemas": [
+      {
+        "apiRoute": "/api/auth/forget-password",
+        "tables": [
+          {
+            "tableName": "user",
+            "columns": [
+              "email"
+            ],
+            "operations": [
+              "read"
+            ]
+          },
+          {
+            "tableName": "account",
+            "columns": [
+              "userId"
+            ],
+            "operations": [
+              "read"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "page": "/auth/callback",
+    "filePath": "app/auth/callback/page.tsx",
+    "apiFetches": [
+      "/api/auth/check-user-org",
+      "/api/auth/check-domain",
+      "/api/auth/post-signup"
+    ],
+    "pageType": "flow",
+    "confidence": "medium",
+    "schemas": [
+      {
+        "apiRoute": "/api/auth/check-user-org",
+        "tables": [
+          {
+            "tableName": "member",
+            "columns": [
+              "userId"
+            ],
+            "operations": [
+              "read"
+            ]
+          }
+        ]
+      },
+      {
+        "apiRoute": "/api/auth/check-domain",
+        "tables": [
+          {
+            "tableName": "user",
+            "columns": [
+              "id",
+              "email"
+            ],
+            "operations": [
+              "write"
+            ]
+          },
+          {
+            "tableName": "member",
+            "columns": [
+              "organizationId",
+              "userId"
+            ],
+            "operations": [
+              "write"
+            ]
+          }
+        ]
+      },
+      {
+        "apiRoute": "/api/auth/post-signup",
+        "tables": [
+          {
+            "tableName": "member",
+            "columns": [
+              "userId",
+              "organizationId"
+            ],
+            "operations": [
+              "read",
+              "write",
+              "update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "page": "/auth/accept-invite-callback",
+    "filePath": "app/auth/accept-invite-callback/page.tsx",
+    "apiFetches": [
+      "/api/auth/organization/accept-invitation"
+    ],
+    "pageType": "redirect",
+    "confidence": "medium",
+    "schemas": [
+      {
+        "apiRoute": "/api/auth/organization/accept-invitation",
+        "tables": [
+          {
+            "tableName": "invitation",
+            "columns": [
+              "id"
+            ],
+            "operations": [
+              "read",
+              "write",
+              "update"
+            ]
+          },
+          {
+            "tableName": "member",
+            "columns": [
+              "userId",
+              "organizationId"
+            ],
+            "operations": [
+              "read",
+              "write",
+              "update"
+            ]
+          },
+          {
+            "tableName": "user",
+            "columns": [
+              "email"
+            ],
+            "operations": [
+              "read",
+              "write",
+              "update"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "page": "/auth/accept-invite",
+    "filePath": "app/auth/accept-invite/page.tsx",
+    "apiFetches": [
+      "/api/auth/organization/accept-invitation"
+    ],
+    "pageType": "flow",
+    "confidence": "medium",
+    "schemas": [
+      {
+        "apiRoute": "/api/auth/organization/accept-invitation",
+        "tables": [
+          {
+            "tableName": "invitation",
+            "columns": [
+              "id"
+            ],
+            "operations": [
+              "read",
+              "write",
+              "update"
+            ]
+          },
+          {
+            "tableName": "member",
+            "columns": [
+              "userId",
+              "organizationId"
+            ],
+            "operations": [
+              "read",
+              "write",
+              "update"
+            ]
+          },
+          {
+            "tableName": "user",
+            "columns": [
+              "email"
+            ],
+            "operations": [
+              "read",
+              "write",
+              "update"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

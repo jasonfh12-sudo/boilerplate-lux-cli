@@ -40,23 +40,53 @@ export async function GET(req: NextRequest) {
     // Get last login for each user
     const usersWithSessions = await Promise.all(
       users.map(async (u) => {
-        const sessions = await db
-          .select({
-            createdAt: session.createdAt,
-          })
-          .from(session)
-          .where(eq(session.userId, u.id))
-          .orderBy(desc(session.createdAt))
-          .limit(1);
+        if (!u || !u.id) {
+          console.error("[API] Invalid user object:", u);
+          return null;
+        }
 
-        return {
-          ...u,
-          lastLogin: sessions[0]?.createdAt || null,
-        };
+        try {
+          const sessions = await db
+            .select({
+              createdAt: session.createdAt,
+            })
+            .from(session)
+            .where(eq(session.userId, u.id))
+            .orderBy(desc(session.createdAt))
+            .limit(1);
+
+          return {
+            id: u.id,
+            email: u.email,
+            name: u.name,
+            emailVerified: u.emailVerified,
+            image: u.image,
+            roleId: u.roleId,
+            createdAt: u.createdAt,
+            updatedAt: u.updatedAt,
+            lastLogin: sessions[0]?.createdAt || null,
+          };
+        } catch (err) {
+          console.error(`[API] Error fetching sessions for user ${u.id}:`, err);
+          return {
+            id: u.id,
+            email: u.email,
+            name: u.name,
+            emailVerified: u.emailVerified,
+            image: u.image,
+            roleId: u.roleId,
+            createdAt: u.createdAt,
+            updatedAt: u.updatedAt,
+            lastLogin: null,
+          };
+        }
       })
     );
 
-    return NextResponse.json({ users: usersWithSessions });
+    // Filter out any null entries
+    const validUsers = usersWithSessions.filter((u) => u !== null);
+
+    return NextResponse.json({ users: validUsers });
   } catch (error) {
     console.error("[API] Error fetching users:", error);
     return NextResponse.json(

@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
-import { roles, pagePermissions } from "@/permissions-schema";
+import { roles, pagePermissions, member } from "@/permissions-schema";
 import { user } from "@/auth-schema";
 
 /**
@@ -207,4 +207,75 @@ export async function getDefaultRole(interfaceId: string) {
       eq(roles.isDefault, true)
     ),
   });
+}
+
+/**
+ * Get all allowed routes for a user based on their custom or org role
+ * Returns array of route patterns (e.g., ["/", "/dashboard", "/settings"])
+ */
+export async function getAllowedRoutesForUser(
+  userId: string,
+  organizationId: string,
+  interfaceId: string
+): Promise<string[]> {
+  try {
+    // Get user's member record to find their role
+    const memberRecord = await db.query.member.findFirst({
+      where: and(
+        eq(member.userId, userId),
+        eq(member.organizationId, organizationId)
+      ),
+    });
+
+    if (!memberRecord) {
+      console.log(`[PERMISSIONS] No member record found for user ${userId} in org ${organizationId}`);
+      return [];
+    }
+
+    let roleRecord;
+
+    // Check if user has a custom role assigned
+    if (memberRecord.customRoleId) {
+      roleRecord = await db.query.roles.findFirst({
+        where: eq(roles.id, memberRecord.customRoleId),
+      });
+      console.log(`[PERMISSIONS] Using custom role for user ${userId}:`, roleRecord?.name);
+    }
+
+    // If no custom role, fall back to default role based on org role
+    if (!roleRecord) {
+      const roleName = memberRecord.role; // e.g., "owner", "admin", "member"
+
+      roleRecord = await db.query.roles.findFirst({
+        where: and(
+          eq(roles.name, roleName),
+          eq(roles.interfaceId, interfaceId)
+        ),
+      });
+
+      if (!roleRecord) {
+        console.log(`[PERMISSIONS] No role record found for role "${roleName}" in interface ${interfaceId}`);
+        // Return default routes if no role configured
+        return ["/"];
+      }
+
+      console.log(`[PERMISSIONS] Using default role "${roleName}" for user ${userId}`);
+    }
+
+    // Get all page permissions for this role
+    const permissions = await db.query.pagePermissions.findMany({
+      where: and(
+        eq(pagePermissions.roleId, roleRecord.id),
+        eq(pagePermissions.canAccess, true)
+      ),
+    });
+
+    const allowedRoutes = permissions.map(p => p.routePattern);
+    console.log(`[PERMISSIONS] User ${userId} has access to:`, allowedRoutes);
+
+    return allowedRoutes;
+  } catch (error) {
+    console.error("[PERMISSIONS] Error getting allowed routes:", error);
+    return [];
+  }
 }

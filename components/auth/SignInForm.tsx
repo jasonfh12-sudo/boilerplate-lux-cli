@@ -23,6 +23,22 @@ export function SignInForm() {
         password,
         callbackURL: "/",
       });
+
+      // Set active organization after sign-in
+      try {
+        const response = await fetch("/api/auth/post-signin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          console.warn("[SIGNIN] Failed to set active organization:", error);
+        }
+      } catch (postSigninErr) {
+        console.warn("[SIGNIN] Post-signin call failed:", postSigninErr);
+      }
+
       router.push("/");
     } catch (err) {
       setError("Invalid email or password");
@@ -38,6 +54,21 @@ export function SignInForm() {
         provider: "google",
         callbackURL: "/",
       });
+
+      // Set active organization after sign-in
+      try {
+        const response = await fetch("/api/auth/post-signin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          console.warn("[SIGNIN] Failed to set active organization:", error);
+        }
+      } catch (postSigninErr) {
+        console.warn("[SIGNIN] Post-signin call failed:", postSigninErr);
+      }
     } catch (err) {
       setError("Failed to sign in with Google");
     }

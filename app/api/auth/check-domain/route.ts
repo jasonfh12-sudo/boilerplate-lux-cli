@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { user } from "@/auth-schema";
+import { member, organization } from "@/permissions-schema";
+import { eq, and } from "drizzle-orm";
 
-const CC_CLOUD_URL = process.env.CC_CLOUD_URL || process.env.NEXT_PUBLIC_CC_CLOUD_URL || "http://localhost:8000";
-const ORG_ID = process.env.CLERK_ORG_ID;
-const INTERFACE_ID = process.env.INTERFACE_ID;
-const MULTI_TENANT = process.env.MULTI_TENANT === "true";
+const AUTH_MODE = process.env.AUTH_MODE || "multi-tenant";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { email } = body;
+
+    console.log("[CHECK-DOMAIN] Request for email:", email);
+    console.log("[CHECK-DOMAIN] AUTH_MODE:", AUTH_MODE);
 
     if (!email) {
       return NextResponse.json(
@@ -17,27 +21,84 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Call cc_cloud API
-    const response = await fetch(`${CC_CLOUD_URL}/auth/check-domain`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email,
-        interfaceId: INTERFACE_ID,
-        orgId: ORG_ID,
-        multiTenant: MULTI_TENANT,
-      }),
-    });
+    const domain = email.split("@")[1];
+    const multiTenant = AUTH_MODE === "multi-tenant";
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
+    // No-auth mode or single-tenant mode: no domain checking needed
+    if (AUTH_MODE === "none" || AUTH_MODE === "single-tenant") {
+      console.log("[CHECK-DOMAIN] Returning single-tenant/no-auth response");
+      return NextResponse.json({
+        canAutoJoin: AUTH_MODE === "single-tenant",
+        matchingOrgs: [],
+        multiTenant: false,
+      });
     }
 
-    return NextResponse.json(data);
+    // Multi-tenant mode: Check for existing users with the same domain
+    const { sql: drizzleSql } = await import("drizzle-orm");
+
+    const usersWithDomain = await db
+      .select({
+        userId: user.id,
+        userEmail: user.email,
+      })
+      .from(user)
+      .where(drizzleSql`${user.email} LIKE '%@' || ${domain}`)
+      .limit(50);
+
+    if (usersWithDomain.length === 0) {
+      // No users with this email domain yet
+      console.log("[CHECK-DOMAIN] No users with domain found, returning empty result");
+      return NextResponse.json({
+        canAutoJoin: false,
+        matchingOrgs: [],
+        multiTenant: true,
+      });
+    }
+
+    // Find organizations these users belong to
+    const userIds = usersWithDomain.map((u) => u.userId);
+
+    // Get all unique organizations from these users
+    const memberships = await db
+      .select({
+        orgId: member.organizationId,
+        orgName: organization.name,
+        orgSlug: organization.slug,
+        orgMetadata: organization.metadata,
+      })
+      .from(member)
+      .innerJoin(organization, eq(member.organizationId, organization.id))
+      .where(drizzleSql`${member.userId} IN ${userIds}`)
+      .limit(20);
+
+    // Filter to only show orgs that allow domain auto-join
+    const matchingOrgs = memberships
+      .filter((m) => {
+        try {
+          const metadata = m.orgMetadata ? JSON.parse(m.orgMetadata) : {};
+          return metadata.allowDomainAutoJoin === true;
+        } catch {
+          return false;
+        }
+      })
+      .map((m) => ({
+        id: m.orgId,
+        name: m.orgName || "Unknown",
+        slug: m.orgSlug || "unknown",
+      }));
+
+    // Remove duplicates
+    const uniqueOrgs = Array.from(
+      new Map(matchingOrgs.map((org) => [org.id, org])).values()
+    );
+
+    console.log("[CHECK-DOMAIN] Returning result with", uniqueOrgs.length, "matching orgs");
+    return NextResponse.json({
+      canAutoJoin: uniqueOrgs.length > 0,
+      matchingOrgs: uniqueOrgs,
+      multiTenant: true,
+    });
   } catch (error: any) {
     console.error("[CHECK-DOMAIN] Error:", error);
     return NextResponse.json(

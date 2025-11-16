@@ -41,6 +41,8 @@ export const session = sqliteTable("system.interface_session", {
   activeOrganizationId: text("active_organization_id")
     .references(() => organization.id, { onDelete: "cascade" }),
   interfaceId: text("interface_id"),
+  allowedRoutes: text("allowed_routes"), // JSON string of allowed route patterns
+  roleId: text("role_id"), // Current user's role ID
 });
 
 export const account = sqliteTable("system.interface_account", {
