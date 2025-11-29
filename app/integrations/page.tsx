@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { Mail } from "lucide-react";
 import ResendDomainManager from "@/components/ResendDomainManager";
+import { useIntegrationsStore } from "@/stores/useIntegrationsStore";
 
 export default function IntegrationsPage() {
-  const [selectedIntegration, setSelectedIntegration] = useState<string | null>(null);
+  const selectedIntegration = useIntegrationsStore((state) => state.selectedIntegration);
+  const toggleIntegration = useIntegrationsStore((state) => state.toggleIntegration);
 
   const integrations = [
     {
@@ -36,11 +37,7 @@ export default function IntegrationsPage() {
             return (
               <button
                 key={integration.id}
-                onClick={() =>
-                  setSelectedIntegration(
-                    selectedIntegration === integration.id ? null : integration.id
-                  )
-                }
+                onClick={() => toggleIntegration(integration.id)}
                 className={`bg-white rounded-lg border-2 p-6 hover:shadow-lg transition-all text-left ${
                   selectedIntegration === integration.id
                     ? "border-gray-900"

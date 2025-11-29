@@ -84,6 +84,11 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
+    // Allow traces endpoint without auth (for browser telemetry)
+    if (pathname.startsWith("/api/traces")) {
+      return NextResponse.next();
+    }
+
     // All other API routes require authentication
     if (!isAuthenticated) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useTableStore } from "@/stores/useTableStore";
 import {
   Table,
   TableBody,
@@ -93,8 +93,10 @@ const users = [
 ];
 
 export default function TableExample() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const searchQuery = useTableStore((state) => state.searchQuery);
+  const selectedRole = useTableStore((state) => state.selectedRole);
+  const setSearchQuery = useTableStore((state) => state.setSearchQuery);
+  const setSelectedRole = useTableStore((state) => state.setSelectedRole);
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =

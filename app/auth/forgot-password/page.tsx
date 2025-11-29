@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useForgotPasswordStore } from "@/stores/useForgotPasswordStore";
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+  const email = useForgotPasswordStore((state) => state.email);
+  const isLoading = useForgotPasswordStore((state) => state.isLoading);
+  const error = useForgotPasswordStore((state) => state.error);
+  const success = useForgotPasswordStore((state) => state.success);
+  const setEmail = useForgotPasswordStore((state) => state.setEmail);
+  const setIsLoading = useForgotPasswordStore((state) => state.setIsLoading);
+  const setError = useForgotPasswordStore((state) => state.setError);
+  const setSuccess = useForgotPasswordStore((state) => state.setSuccess);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

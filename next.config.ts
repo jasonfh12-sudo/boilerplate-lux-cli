@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Enable instrumentation hook for OpenTelemetry
+    instrumentationHook: true,
+  },
+
   // External packages for server-side rendering
   // Required for Better Auth + Turso/LibSQL integration
   serverExternalPackages: [
